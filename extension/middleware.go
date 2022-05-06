@@ -1,0 +1,27 @@
+package extension
+
+import (
+	"context"
+	"github.com/yuridevx/app/options"
+)
+
+type CallType string
+
+const (
+	CallStartGroup    CallType = "CallStartGroup"
+	CallStart         CallType = "CallStart"
+	CallShutdownGroup CallType = "CallShutdownGroup"
+	CallShutdown      CallType = "CallShutdown"
+	CallPeriodic      CallType = "CallPeriodic"
+	CallCConsume      CallType = "CallCConsume"
+	CallPConsume      CallType = "CallPConsume"
+	CallPBlocking     CallType = "CallPBlocking"
+)
+
+type Part interface {
+	GetHandler() uintptr
+	GetComponentDefinition() options.ComponentDefinition
+}
+
+type Middleware func(ctx context.Context, call CallType, input interface{}, part Part, next NextFn) error
+type NextFn func(ctx context.Context, input interface{}) error
