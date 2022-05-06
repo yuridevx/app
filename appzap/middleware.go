@@ -38,6 +38,28 @@ var ShouldLogNever = func(trace *apptrace.Trace, callType extension.CallType, ti
 	return false
 }
 
+var LogMeMiddleware = func(
+	ctx context.Context,
+	call extension.CallType,
+	input interface{},
+	part extension.Part,
+	next extension.NextFn,
+) error {
+	apptrace.FromContext(ctx).WithLog(true)
+	return next(ctx, input)
+}
+
+var DontLogMeMiddleware = func(
+	ctx context.Context,
+	call extension.CallType,
+	input interface{},
+	part extension.Part,
+	next extension.NextFn,
+) error {
+	apptrace.FromContext(ctx).WithLog(false)
+	return next(ctx, input)
+}
+
 func ZapMiddleware(
 	logger *zap.Logger,
 	shouldLog ShouldLog,
