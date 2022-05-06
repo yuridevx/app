@@ -29,11 +29,15 @@ func (h *reflectiveInvoke) call(ctx context.Context, wg *sync.WaitGroup, input r
 		wg.Add(1)
 	}
 	if h.inputIndex >= 0 {
-		argInputType := input.Type()
-		if !argInputType.AssignableTo(h.inputType) {
-			log.Panicf("input type %s is not assignable to %s", argInputType, h.inputType)
+		if input.IsNil() {
+			args[h.inputIndex] = input
+		} else {
+			argInputType := input.Type()
+			if !argInputType.AssignableTo(h.inputType) {
+				log.Panicf("input type %s is not assignable to %s", argInputType, h.inputType)
+			}
+			args[h.inputIndex] = input
 		}
-		args[h.inputIndex] = input
 	}
 	result := h.fn.Call(args)
 	if len(result) == 0 {
