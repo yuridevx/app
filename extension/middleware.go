@@ -2,7 +2,6 @@ package extension
 
 import (
 	"context"
-	"github.com/yuridevx/app/options"
 )
 
 type CallType string
@@ -20,7 +19,7 @@ const (
 
 type Part interface {
 	GetHandler() uintptr
-	GetComponentDefinition() options.ComponentDefinition
+	GetComponentDefinition() interface{}
 }
 
 type Middleware func(ctx context.Context, call CallType, input interface{}, part Part, next NextFn) error

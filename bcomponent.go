@@ -212,6 +212,7 @@ func (c *componentBuilder) build(opts options.ApplicationOptions, events handler
 	}
 	com := &component{
 		options:    c.ComponentOptions,
+		appOptions: opts,
 		start:      start,
 		shutdown:   shutdown,
 		cPeriod:    cPeriods,

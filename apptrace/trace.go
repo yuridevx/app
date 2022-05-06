@@ -133,6 +133,15 @@ func (t *Trace) GetName() string {
 	return t.Name
 }
 
+func (t *Trace) GetLog() bool {
+	if t == nil {
+		return false
+	}
+	t.Mut.Lock()
+	defer t.Mut.Unlock()
+	return t.Log
+}
+
 func NewTrace() *Trace {
 	return &Trace{
 		Attributes: make(map[string]interface{}),

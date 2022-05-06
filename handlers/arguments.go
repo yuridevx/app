@@ -13,7 +13,7 @@ func (h Handler) GetHandler() uintptr {
 	return h.HandlerID
 }
 
-func (h Handler) GetComponentDefinition() options.ComponentDefinition {
+func (h Handler) GetComponentDefinition() interface{} {
 	return h.Component.Definition
 }
 

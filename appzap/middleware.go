@@ -12,30 +12,23 @@ type LogTime string
 const LogBefore LogTime = "before"
 const LogAfter LogTime = "after"
 
-type ShouldLog = func(
+type LogFn = func(
 	trace *apptrace.Trace,
 	callType extension.CallType,
 	time LogTime,
-) bool
+) (bool, []zap.Field)
 
-var ShouldLogAfter = func(trace *apptrace.Trace, callType extension.CallType, time LogTime) bool {
-	return trace.Log && time == LogAfter
-}
-
-var ShouldLogBefore = func(trace *apptrace.Trace, callType extension.CallType, time LogTime) bool {
-	return trace.Log && time == LogBefore
-}
-
-var ShouldLogAll = func(trace *apptrace.Trace, callType extension.CallType, time LogTime) bool {
-	return trace.Log
-}
-
-var ShouldLogAlways = func(trace *apptrace.Trace, callType extension.CallType, time LogTime) bool {
-	return true
-}
-
-var ShouldLogNever = func(trace *apptrace.Trace, callType extension.CallType, time LogTime) bool {
-	return false
+var DefaultLogFn = func(
+	trace *apptrace.Trace,
+	callType extension.CallType,
+	time LogTime,
+) (bool, []zap.Field) {
+	if callType == extension.CallPBlocking ||
+		callType == extension.CallStart ||
+		callType == extension.CallShutdown {
+		return true, nil
+	}
+	return trace.GetLog(), nil
 }
 
 var LogMeMiddleware = func(
@@ -62,10 +55,10 @@ var DontLogMeMiddleware = func(
 
 func ZapMiddleware(
 	logger *zap.Logger,
-	shouldLog ShouldLog,
+	shouldLog LogFn,
 ) extension.Middleware {
 	if shouldLog == nil {
-		shouldLog = ShouldLogAll
+		shouldLog = DefaultLogFn
 	}
 	return func(
 		ctx context.Context,
@@ -75,15 +68,17 @@ func ZapMiddleware(
 		next extension.NextFn,
 	) error {
 		trace := apptrace.FromContext(ctx)
-		if shouldLog(trace, call, LogBefore) {
-			logger.Info(trace.GetName() + " starting")
+		log, fields := shouldLog(trace, call, LogBefore)
+		if log {
+			logger.Info(trace.GetName()+" starting", fields...)
 		}
 		err := next(ctx, input)
-		if shouldLog(trace, call, LogAfter) {
+		log, fields = shouldLog(trace, call, LogAfter)
+		if log {
 			if err != nil {
-				logger.Error(trace.GetName()+" finished", AppErr(err), InlineMap(trace.GetAttributes()))
+				logger.With(AppErr(err), InlineMap(trace.GetAttributes())).Error(trace.GetName()+" finished", fields...)
 			} else {
-				logger.Info(trace.GetName()+" finished", InlineMap(trace.GetAttributes()))
+				logger.With(InlineMap(trace.GetAttributes())).Info(trace.GetName()+" finished", fields...)
 			}
 			for _, noticeErr := range trace.GetErrors() {
 				logger.Warn(trace.GetName()+" notice ", AppErr(noticeErr))

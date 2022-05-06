@@ -18,6 +18,10 @@ func NewTraceMiddleware(
 		part extension.Part,
 		next extension.NextFn,
 	) error {
+		if part == nil {
+			err := next(ctx, input)
+			return err
+		}
 		name := naming(call, part)
 		trace := NewTrace().WithName(name)
 		ctx = TraceContext(ctx, trace)
