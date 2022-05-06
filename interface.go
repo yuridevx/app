@@ -25,6 +25,11 @@ type AppBuilder interface {
 	Build() Application
 }
 
+/*ComponentBuilder
+Methods starting with P - "Parallel" runs handlers in parallel
+Methods starting with C - "Compete" runs handlers in the same goroutine
+All C periodic timers and consume channels compete to run
+*/
 type ComponentBuilder interface {
 	Options(opts options.ComponentOptions) ComponentBuilder
 	PConsume(ch interface{}, goroutines int, fn options.HandlerFn, opts ...options.PConsumeOptions) ComponentBuilder
