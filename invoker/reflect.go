@@ -29,8 +29,8 @@ func (h *reflectiveInvoke) call(ctx context.Context, wg *sync.WaitGroup, input r
 		wg.Add(1)
 	}
 	if h.inputIndex >= 0 {
-		if input.IsNil() {
-			args[h.inputIndex] = input
+		if !input.IsValid() {
+			args[h.inputIndex] = reflect.Zero(h.inputType)
 		} else {
 			argInputType := input.Type()
 			if !argInputType.AssignableTo(h.inputType) {
