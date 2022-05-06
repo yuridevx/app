@@ -1,4 +1,4 @@
-package apptrace
+package apprelic
 
 import (
 	"context"
