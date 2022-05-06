@@ -3,6 +3,7 @@ package apptrace
 import (
 	"context"
 	"github.com/newrelic/go-agent/v3/newrelic"
+	"github.com/yuridevx/app/apptrace"
 	"runtime"
 )
 
@@ -53,7 +54,7 @@ func QuickSegment(ctx context.Context, options ...SegmentOption) func() {
 	}
 	if segment.Name == "" {
 		caller, _, _, _ := runtime.Caller(1)
-		segment.Name = FunctionToName(caller)
+		segment.Name = apptrace.FunctionToName(caller)
 	}
 	return segment.End
 }
