@@ -14,15 +14,16 @@ const LogAfter LogTime = "after"
 
 type LogFn = func(
 	trace *apptrace.Trace,
-	callType options.CallType,
+	call options.Call,
 	time LogTime,
 ) (bool, []zap.Field)
 
 var DefaultLogFn = func(
 	trace *apptrace.Trace,
-	callType options.CallType,
+	call options.Call,
 	time LogTime,
 ) (bool, []zap.Field) {
+	callType := call.GetCallType()
 	if callType == options.CallPBlocking ||
 		callType == options.CallStart ||
 		callType == options.CallShutdown {
@@ -31,9 +32,8 @@ var DefaultLogFn = func(
 	return trace.GetLog(), nil
 }
 
-var LogMeMiddleware = func(
+var LogMeMiddleware options.Middleware = func(
 	ctx context.Context,
-	call options.CallType,
 	input interface{},
 	part options.Call,
 	next options.NextFn,
@@ -42,9 +42,8 @@ var LogMeMiddleware = func(
 	return next(ctx, input)
 }
 
-var DontLogMeMiddleware = func(
+var DontLogMeMiddleware options.Middleware = func(
 	ctx context.Context,
-	call options.CallType,
 	input interface{},
 	part options.Call,
 	next options.NextFn,
@@ -62,9 +61,8 @@ func ZapMiddleware(
 	}
 	return func(
 		ctx context.Context,
-		call options.CallType,
 		input interface{},
-		part options.Call,
+		call options.Call,
 		next options.NextFn,
 	) error {
 		trace := apptrace.FromContext(ctx)

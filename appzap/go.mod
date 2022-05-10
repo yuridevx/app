@@ -5,7 +5,7 @@ go 1.18
 replace github.com/yuridevx/app => ../
 
 require (
-	github.com/yuridevx/app v0.0.22
+	github.com/yuridevx/app v0.0.30
 	go.uber.org/zap v1.21.0
 )
 
