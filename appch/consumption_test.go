@@ -1,11 +1,8 @@
-package benchmark
+package appch
 
 import (
-	"context"
-	"github.com/yuridevx/app/handlers"
 	"reflect"
 	"testing"
-	"time"
 )
 
 type obj struct {
@@ -30,10 +27,12 @@ func BenchmarkChannelConsumption(b *testing.B) {
 	}()
 
 	b.Run("normal", func(b *testing.B) {
-		select {
-		case <-ch:
-		case <-exit:
-			return
+		for i := 0; i < b.N; i++ {
+			select {
+			case <-ch:
+			case <-exit:
+				return
+			}
 		}
 	})
 
@@ -49,7 +48,9 @@ func BenchmarkChannelConsumption(b *testing.B) {
 	}
 
 	b.Run("reflect", func(b *testing.B) {
-		reflect.Select(cases)
+		for i := 0; i < b.N; i++ {
+			reflect.Select(cases)
+		}
 	})
 }
 
@@ -73,25 +74,28 @@ func BenchmarkChannelMerge(b *testing.B) {
 		}(i)
 	}
 
-	normalMerge := handlers.Merge(context.Background(), chs...)
+	normalMerge := Merge(0, exit, chs...)
 
 	b.Run("normal", func(b *testing.B) {
-		time.Sleep(time.Nanosecond * 10)
-		select {
-		case <-normalMerge:
-		case <-exit:
-			return
+		for i := 0; i < b.N; i++ {
+			select {
+			case <-normalMerge:
+			case <-exit:
+				return
+			}
 		}
 	})
 
-	reflectMerge := handlers.MergeReflect(context.Background(), chs...)
-
-	b.Run("reflect", func(b *testing.B) {
-		time.Sleep(time.Nanosecond * 10)
-		select {
-		case <-reflectMerge:
-		case <-exit:
-			return
-		}
-	})
+	// Was slow
+	//reflectMerge := handlers.MergeReflect(context.Background(), chs...)
+	//
+	//b.Run("reflect", func(b *testing.B) {
+	//	for i := 0; i < b.N; i++ {
+	//		select {
+	//		case <-reflectMerge:
+	//		case <-exit:
+	//			return
+	//		}
+	//	}
+	//})
 }

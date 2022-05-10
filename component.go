@@ -2,7 +2,7 @@ package app
 
 import (
 	"context"
-	"github.com/yuridevx/app/extension"
+	"github.com/yuridevx/app/appch"
 	"github.com/yuridevx/app/handlers"
 	"github.com/yuridevx/app/invoker"
 	"github.com/yuridevx/app/options"
@@ -20,6 +20,8 @@ type component struct {
 	cConsume   []*handlers.CConsumeHandler
 	pConsume   []*handlers.PConsumeHandler
 	pBlocking  []*handlers.PBlockingHandler
+	proxy      []*handlers.ProxyHandler
+
 	shutdownCh chan struct{}
 	closed     atomic.Bool
 
@@ -51,6 +53,7 @@ func (c *component) goRun(ctx context.Context, wg *sync.WaitGroup) {
 	if err != nil {
 		return
 	}
+	c.startProxy(ctx, wg)
 	c.launchParallel(ctx, wg)
 	c.loop(ctx, wg)
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), c.appOptions.ComponentShutdownTimeout)
@@ -85,10 +88,12 @@ func (c *component) invokeStart(ctx context.Context, wg *sync.WaitGroup) error {
 				}
 			}
 			return allErr
-		}, extension.CallStartGroup,
-		c.appOptions.GlobalMiddleware,
-		c.options.ComponentMiddleware,
-	).Invoke(ctx, wg, nil, nil)
+		},
+		c.appOptions.Middleware,
+		c.options.Middleware,
+	).Invoke(ctx, wg, nil, &AppCall{
+		CallType: options.CallStartGroup,
+	})
 	return err
 }
 
@@ -107,10 +112,12 @@ func (c *component) invokeShutdown(ctx context.Context, wg *sync.WaitGroup) {
 				}
 			}
 			return allErr
-		}, extension.CallShutdownGroup,
-		c.appOptions.GlobalMiddleware,
-		c.options.ComponentMiddleware,
-	).Invoke(ctx, wg, nil, nil)
+		},
+		c.appOptions.Middleware,
+		c.options.Middleware,
+	).Invoke(ctx, wg, nil, &AppCall{
+		CallType: options.CallShutdownGroup,
+	})
 }
 
 func (c *component) loop(ctx context.Context, wg *sync.WaitGroup) {
@@ -129,7 +136,7 @@ func (c *component) loop(ctx context.Context, wg *sync.WaitGroup) {
 	for i, h := range compete {
 		channels[i] = h.GetSendCh()
 	}
-	input := handlers.Merge(ctx, channels...)
+	input := appch.Merge(0, ctx.Done(), channels...)
 	for {
 		select {
 		case <-c.shutdownCh:
@@ -139,5 +146,11 @@ func (c *component) loop(ctx context.Context, wg *sync.WaitGroup) {
 		case iv := <-input:
 			compete[iv.Index].Execute(ctx, wg, iv.Value)
 		}
+	}
+}
+
+func (c *component) startProxy(ctx context.Context, wg *sync.WaitGroup) {
+	for _, p := range c.proxy {
+		p.ComponentStarted(ctx, wg)
 	}
 }

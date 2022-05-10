@@ -9,22 +9,30 @@ type Handler struct {
 	Component options.ComponentOptions
 }
 
-func (h Handler) GetHandler() uintptr {
-	return h.HandlerID
-}
-
-func (h Handler) GetComponentDefinition() interface{} {
-	return h.Component.Definition
-}
-
 type CStart struct {
 	Handler
-	Start options.ComponentStartOptions
+	Start options.StartOptions
+}
+
+func (h *CStart) ToCall(callType options.CallType) *Call {
+	return &Call{
+		Component: h.Component,
+		CallType:  callType,
+		Handler:   h.HandlerID,
+	}
 }
 
 type CShutdown struct {
 	Handler
-	Shutdown options.ComponentShutdownOptions
+	Shutdown options.ShutdownOptions
+}
+
+func (h *CShutdown) ToCall(callType options.CallType) *Call {
+	return &Call{
+		Component: h.Component,
+		CallType:  callType,
+		Handler:   h.HandlerID,
+	}
 }
 
 type CPeriod struct {
@@ -32,9 +40,25 @@ type CPeriod struct {
 	Period options.CPeriodOptions
 }
 
+func (h *CPeriod) ToCall(callType options.CallType) *Call {
+	return &Call{
+		Component: h.Component,
+		CallType:  callType,
+		Handler:   h.HandlerID,
+	}
+}
+
 type CConsume struct {
 	Handler
 	Consume options.CConsumeOptions
+}
+
+func (h *CConsume) ToCall(callType options.CallType) *Call {
+	return &Call{
+		Component: h.Component,
+		CallType:  callType,
+		Handler:   h.HandlerID,
+	}
 }
 
 type PConsume struct {
@@ -42,7 +66,36 @@ type PConsume struct {
 	Consume options.PConsumeOptions
 }
 
+func (h *PConsume) ToCall(callType options.CallType) *Call {
+	return &Call{
+		Component: h.Component,
+		CallType:  callType,
+		Handler:   h.HandlerID,
+	}
+}
+
 type PBlocking struct {
 	Handler
 	Blocking options.PBlockingOptions
+}
+
+func (h *PBlocking) ToCall(callType options.CallType) *Call {
+	return &Call{
+		Component: h.Component,
+		CallType:  callType,
+		Handler:   h.HandlerID,
+	}
+}
+
+type Proxy struct {
+	Handler
+	Proxy options.ProxyOptions
+}
+
+func (h *Proxy) ToCall(callType options.CallType) *Call {
+	return &Call{
+		Component: h.Component,
+		CallType:  callType,
+		Handler:   h.HandlerID,
+	}
 }

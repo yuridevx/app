@@ -12,7 +12,7 @@ type app struct {
 	opts           options.ApplicationOptions
 	events         handlers.Events
 	components     []*component
-	shutdown       []AppShutdownFn
+	shutdown       []ShutdownFn
 	shutdownSignal chan struct{}
 	closed         atomic.Bool
 }

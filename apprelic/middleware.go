@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/yuridevx/app/apptrace"
-	"github.com/yuridevx/app/extension"
+	"github.com/yuridevx/app/options"
 )
 
 func RelicTrace(txn *newrelic.Transaction, trace *apptrace.Trace, err error) {
@@ -25,25 +25,39 @@ func RelicTrace(txn *newrelic.Transaction, trace *apptrace.Trace, err error) {
 	}
 }
 
-func NewNewRelicMiddleware(
-	application *newrelic.Application,
-) extension.Middleware {
-	return func(
-		ctx context.Context,
-		call extension.CallType,
-		input interface{},
-		part extension.Part,
-		next extension.NextFn,
-	) error {
+func NewRelicTransactionMiddleware(
+	nr *newrelic.Application,
+) options.Middleware {
+	return func(ctx context.Context, input interface{}, call options.Call, next options.NextFn) error {
 		// prepare context
-		trace := apptrace.FromContext(ctx)
-		txn := application.StartTransaction(trace.GetName())
+		txn := nr.StartTransaction("")
 		defer txn.End()
 		ctx = newrelic.NewContext(ctx, txn)
+		// execute
+		err := next(ctx, input)
+		return err
+	}
+}
+
+func NewRelicTraceMiddleware() options.Middleware {
+	return func(
+		ctx context.Context,
+		input interface{},
+		part options.Call,
+		next options.NextFn,
+	) error {
+		// prepare context
+		trace := apptrace.NewTrace()
+		ctx = apptrace.TraceContext(ctx, trace)
 
 		// execute
 		err := next(ctx, input)
-		RelicTrace(txn, trace, err)
+		txn := newrelic.FromContext(ctx)
+		if txn != nil {
+			txn.SetName(trace.GetName())
+			RelicTrace(txn, trace, err)
+		}
+
 		return err
 	}
 }

@@ -1,4 +1,4 @@
-package extension
+package options
 
 import (
 	"context"
@@ -11,16 +11,19 @@ const (
 	CallStart         CallType = "CallStart"
 	CallShutdownGroup CallType = "CallShutdownGroup"
 	CallShutdown      CallType = "CallShutdown"
-	CallPeriodic      CallType = "CallPeriodic"
+	CallCPeriod       CallType = "CallCPeriod"
 	CallCConsume      CallType = "CallCConsume"
 	CallPConsume      CallType = "CallPConsume"
 	CallPBlocking     CallType = "CallPBlocking"
+	CallProxy         CallType = "CallProxy"
 )
 
-type Part interface {
+type Call interface {
+	GetCallType() CallType
+	IsCallType(callType ...CallType) bool
 	GetHandler() uintptr
 	GetComponentDefinition() interface{}
 }
 
-type Middleware func(ctx context.Context, call CallType, input interface{}, part Part, next NextFn) error
-type NextFn func(ctx context.Context, input interface{}) error
+type Middleware = func(ctx context.Context, input interface{}, call Call, next NextFn) error
+type NextFn = func(ctx context.Context, input interface{}) error

@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"context"
-	"github.com/yuridevx/app/extension"
 	"github.com/yuridevx/app/invoker"
+	"github.com/yuridevx/app/options"
 	"sync"
 )
 
@@ -17,7 +17,7 @@ type CConsumeHandler struct {
 func (c *CConsumeHandler) GoRun(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 	defer c.Events.CConsumeExit(c.CConsume)
-	consumeCh := toInterfaceCh(ctx, c.CConsume.Consume.ConsumeCH)
+	consumeCh := c.CConsume.Consume.ConsumeCh
 	for {
 		select {
 		case <-ctx.Done():
@@ -45,7 +45,7 @@ func (c *CConsumeHandler) GoRun(ctx context.Context, wg *sync.WaitGroup) {
 
 func (c *CConsumeHandler) Execute(ctx context.Context, wg *sync.WaitGroup, input interface{}) {
 	c.Events.CConsumeExec(c.CConsume, input)
-	err := c.invoke.Invoke(ctx, wg, input, c.CConsume)
+	err := c.invoke.Invoke(ctx, wg, input, c.ToCall(options.CallCConsume))
 	c.Events.CConsumeResult(c.CConsume, err)
 	select {
 	case c.nextCh <- struct{}{}:
@@ -62,10 +62,9 @@ func NewConsumeHandler(
 ) *CConsumeHandler {
 	invoke := invoker.NewInvoker(
 		consume.Consume.Handler,
-		extension.CallCConsume,
-		consume.App.GlobalMiddleware,
-		consume.Component.ComponentMiddleware,
-		consume.Consume.CallMiddleware,
+		consume.App.Middleware,
+		consume.Component.Middleware,
+		consume.Consume.Middleware,
 	)
 	return &CConsumeHandler{
 		CConsume: consume,

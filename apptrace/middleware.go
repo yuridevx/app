@@ -2,27 +2,26 @@ package apptrace
 
 import (
 	"context"
-	"github.com/yuridevx/app/extension"
+	"github.com/yuridevx/app/options"
 )
 
 func NewTraceMiddleware(
 	naming NamingStrategy,
-) extension.Middleware {
+) options.Middleware {
 	if naming == nil {
 		naming = DefaultNamingStrategy
 	}
 	return func(
 		ctx context.Context,
-		call extension.CallType,
 		input interface{},
-		part extension.Part,
-		next extension.NextFn,
+		part options.Call,
+		next options.NextFn,
 	) error {
 		if part == nil {
 			err := next(ctx, input)
 			return err
 		}
-		name := naming(call, part)
+		name := naming(part)
 		trace := NewTrace().WithName(name)
 		ctx = TraceContext(ctx, trace)
 		err := next(ctx, input)

@@ -9,6 +9,14 @@ var traceKeyVal traceKey
 const GinAppTraceContextKey = "GinAppTraceContextKey" // used for gin context
 
 func TraceContext(ctx context.Context, trace *Trace) context.Context {
+	// gin support
+	if ginCtx, ok := ctx.(interface {
+		Set(key string, value interface{})
+	}); ok {
+		ginCtx.Set(GinAppTraceContextKey, trace)
+		return ctx
+	}
+
 	return context.WithValue(ctx, traceKeyVal, trace)
 }
 

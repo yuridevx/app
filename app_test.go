@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"fmt"
+	"github.com/yuridevx/app/appch"
 	"github.com/yuridevx/app/handlers"
 	"github.com/yuridevx/app/options"
 	"log"
@@ -29,7 +31,7 @@ func TestConsume(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
 	defer cancel()
 	ap.C("test").
-		CConsume(inp1, func(ctx context.Context, val interface{}) {
+		CConsume(appch.ToInterfaceChan(inp1), func(ctx context.Context, val interface{}) {
 			cnt++
 		})
 	b := ap.Build()
@@ -74,11 +76,11 @@ func TestCompete(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	ap := NewBuilder().Events(handlers.LogEvents{})
 	ap.C("test").
-		CConsume(inp1, func(ctx context.Context, val interface{}) {
-			res1 = append(res1, val.(int))
+		CConsume(appch.ToInterfaceChan(inp1), func(ctx context.Context, val int) {
+			res1 = append(res1, val)
 		}).
-		CConsume(inp2, func(ctx context.Context, val interface{}) {
-			res2 = append(res2, val.(int))
+		CConsume(appch.ToInterfaceChan(inp2), func(ctx context.Context, val int) {
+			res2 = append(res2, val)
 		}).
 		CPeriodFn(func() time.Duration {
 			return time.Millisecond * 100
@@ -139,8 +141,8 @@ func TestEnable(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	l.CPeriodIndexFn(quickStart, func(ctx context.Context) {
 		cnt1++
-	}, options.CPeriodOptions{
-		SwitchCh: enable,
+	}, func(o *options.CPeriodOptions) {
+		o.SwitchCh = enable
 	})
 	l.CPeriod(time.Millisecond*350, func(ctx context.Context) {
 		cancel()
@@ -174,8 +176,8 @@ func TestSwitchOnOff(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	l.CPeriodIndexFn(quickStart, func(ctx context.Context) {
 		cnt1++
-	}, options.CPeriodOptions{
-		SwitchCh: enable,
+	}, func(o *options.CPeriodOptions) {
+		o.SwitchCh = enable
 	})
 	l.CPeriod(time.Millisecond*420, func(ctx context.Context) {
 		cancel()
@@ -185,4 +187,40 @@ func TestSwitchOnOff(t *testing.T) {
 	if cnt1 != 2 {
 		t.Errorf("cnt1 should be 2, but got %d", cnt1)
 	}
+}
+
+func TestProxyPanic(t *testing.T) {
+	wg := &sync.WaitGroup{}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	var callArg int
+
+	ap := NewBuilder()
+	c := ap.C("test").CPeriod(100*time.Millisecond, func() {
+		cancel()
+	})
+	proxyFn := c.Proxy(func(ctx context.Context, wg *sync.WaitGroup, val int) error {
+		defer wg.Done()
+		callArg = val
+		return fmt.Errorf("test")
+	})
+	shouldPanic(t, proxyFn)
+	ap.Build().Run(ctx, wg)
+	errVal := proxyFn(10)
+	wg.Wait()
+	if callArg != 10 {
+		t.Errorf("callArg should be 10, but got %d", callArg)
+	}
+	if errVal.Error() != "test" {
+		t.Errorf("errVal should be test, but got %s", errVal.Error())
+	}
+}
+
+func shouldPanic(t *testing.T, fn func(...interface{}) error) {
+	t.Helper()
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("should panic")
+		}
+	}()
+	_ = fn()
 }

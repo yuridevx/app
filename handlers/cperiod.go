@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"context"
-	"github.com/yuridevx/app/extension"
 	"github.com/yuridevx/app/invoker"
+	"github.com/yuridevx/app/options"
 	"go.uber.org/atomic"
 	"log"
 	"math"
@@ -127,7 +127,7 @@ func (h *CPeriodHandler) getNextDuration() time.Duration {
 
 func (h *CPeriodHandler) Execute(ctx context.Context, wg *sync.WaitGroup, input interface{}) {
 	h.Events.CPeriodExec(h.CPeriod, input)
-	err := h.invoke.Invoke(ctx, wg, input, h.CPeriod)
+	err := h.invoke.Invoke(ctx, wg, input, h.ToCall(options.CallCPeriod))
 	h.Events.CPeriodResult(h.CPeriod, err)
 	select {
 	case h.nextCh <- struct{}{}:
@@ -142,10 +142,9 @@ func (h *CPeriodHandler) GetSendCh() chan interface{} {
 func NewCPeriodHandler(cperiod CPeriod) *CPeriodHandler {
 	invoke := invoker.NewInvoker(
 		cperiod.Period.Handler,
-		extension.CallPeriodic,
-		cperiod.App.GlobalMiddleware,
-		cperiod.Component.ComponentMiddleware,
-		cperiod.Period.CallMiddleware,
+		cperiod.App.Middleware,
+		cperiod.Component.Middleware,
+		cperiod.Period.Middleware,
 	)
 	return &CPeriodHandler{
 		CPeriod: cperiod,

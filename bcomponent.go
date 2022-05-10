@@ -8,59 +8,62 @@ import (
 )
 
 type componentBuilder struct {
-	options.ComponentOptions
-	start     []options.ComponentStartOptions
-	shutdown  []options.ComponentShutdownOptions
-	cPeriods  []options.CPeriodOptions
-	cConsume  []options.CConsumeOptions
-	pConsume  []options.PConsumeOptions
-	pBlocking []options.PBlockingOptions
+	opts          options.ComponentOptions
+	start         []options.StartOptions
+	shutdown      []options.ShutdownOptions
+	cPeriods      []options.CPeriodOptions
+	cConsume      []options.CConsumeOptions
+	pConsume      []options.PConsumeOptions
+	pBlocking     []options.PBlockingOptions
+	proxyHandlers []*handlers.ProxyHandler
 }
 
 func (c *componentBuilder) CPeriodIndexFn(
 	pIFn options.PeriodIndexFn,
 	fn options.HandlerFn,
-	opts ...options.CPeriodOptions,
+	opts ...options.CPeriodOption,
 ) ComponentBuilder {
 	opt := options.DefaultCPeriodOptions()
 	opt.PeriodIndexFn = pIFn
 	opt.Handler = fn
 	for _, o := range opts {
-		opt.Merge(&o)
+		o(&opt)
 	}
 	opt.Validate()
 	c.cPeriods = append(c.cPeriods, opt)
 	return c
 }
 
-func (c *componentBuilder) Options(opts options.ComponentOptions) ComponentBuilder {
-	c.ComponentOptions.Merge(&opts)
+func (c *componentBuilder) Options(opts ...options.ComponentOption) ComponentBuilder {
+	for _, o := range opts {
+		o(&c.opts)
+	}
 	return c
 }
 
 func (c *componentBuilder) PConsume(
-	ch interface{},
+	ch chan interface{},
 	goroutines int,
 	fn options.HandlerFn,
-	opts ...options.PConsumeOptions,
+	opts ...options.PConsumeOption,
 ) ComponentBuilder {
 	opt := options.DefaultPConsumeOptions()
 	opt.ConsumeCH = ch
 	opt.Goroutines = goroutines
 	opt.Handler = fn
 	for _, o := range opts {
-		opt.Merge(&o)
+		o(&opt)
 	}
 	opt.Validate()
 	c.pConsume = append(c.pConsume, opt)
 	return c
 }
 
-func (c *componentBuilder) PBlocking(fn options.HandlerFn, opts ...options.PBlockingOptions) ComponentBuilder {
+func (c *componentBuilder) PBlocking(fn options.HandlerFn, opts ...options.PBlockingOption) ComponentBuilder {
 	opt := options.DefaultPBlockingOptions()
 	opt.Handler = fn
 	for _, o := range opts {
-		opt.Merge(&o)
+		o(&opt)
 	}
 	opt.Validate()
 	c.pBlocking = append(c.pBlocking, opt)
@@ -68,15 +71,15 @@ func (c *componentBuilder) PBlocking(fn options.HandlerFn, opts ...options.PBloc
 }
 
 func (c *componentBuilder) CConsume(
-	ch interface{},
+	ch chan interface{},
 	fn options.HandlerFn,
-	opts ...options.CConsumeOptions,
+	opts ...options.CConsumeOption,
 ) ComponentBuilder {
 	opt := options.DefaultCConsumeOptions()
-	opt.ConsumeCH = ch
+	opt.ConsumeCh = ch
 	opt.Handler = fn
 	for _, o := range opts {
-		opt.Merge(&o)
+		o(&opt)
 	}
 	opt.Validate()
 	c.cConsume = append(c.cConsume, opt)
@@ -86,13 +89,13 @@ func (c *componentBuilder) CConsume(
 func (c *componentBuilder) CPeriod(
 	p time.Duration,
 	fn options.HandlerFn,
-	opts ...options.CPeriodOptions,
+	opts ...options.CPeriodOption,
 ) ComponentBuilder {
 	opt := options.DefaultCPeriodOptions()
 	opt.Period = p
 	opt.Handler = fn
 	for _, o := range opts {
-		opt.Merge(&o)
+		o(&opt)
 	}
 	opt.Validate()
 	c.cPeriods = append(c.cPeriods, opt)
@@ -102,35 +105,50 @@ func (c *componentBuilder) CPeriod(
 func (c *componentBuilder) CPeriodFn(
 	pFn options.PeriodFn,
 	fn options.HandlerFn,
-	opts ...options.CPeriodOptions,
+	opts ...options.CPeriodOption,
 ) ComponentBuilder {
 	opt := options.DefaultCPeriodOptions()
 	opt.PeriodFn = pFn
 	opt.Handler = fn
 	for _, o := range opts {
-		opt.Merge(&o)
+		o(&opt)
 	}
 	opt.Validate()
 	c.cPeriods = append(c.cPeriods, opt)
 	return c
 }
 
-func (c *componentBuilder) OnStart(fn options.HandlerFn, opts ...options.ComponentStartOptions) ComponentBuilder {
-	opt := options.DefaultComponentStartOptions()
+func (c *componentBuilder) OnStart(fn options.HandlerFn, opts ...options.StartOption) ComponentBuilder {
+	opt := options.DefaultStartOptions()
 	opt.Handler = fn
 	for _, o := range opts {
-		opt.Merge(&o)
+		o(&opt)
 	}
 	opt.Validate()
 	c.start = append(c.start, opt)
 	return c
 }
 
-func (c *componentBuilder) OnShutdown(fn options.HandlerFn, opts ...options.ComponentShutdownOptions) ComponentBuilder {
-	opt := options.DefaultComponentShutdownOptions()
+func (c *componentBuilder) Proxy(fn options.HandlerFn, opts ...options.ProxyOption) ProxyFn {
+	opt := options.DefaultProxyOptions()
 	opt.Handler = fn
 	for _, o := range opts {
-		opt.Merge(&o)
+		o(&opt)
+	}
+	opt.Validate()
+	handler := handlers.NewProxyHandler(handlers.Proxy{
+		// handler is set during build
+		Proxy: opt,
+	})
+	c.proxyHandlers = append(c.proxyHandlers, handler)
+	return handler.ProxyFn
+}
+
+func (c *componentBuilder) OnShutdown(fn options.HandlerFn, opts ...options.ShutdownOption) ComponentBuilder {
+	opt := options.DefaultShutdownOptions()
+	opt.Handler = fn
+	for _, o := range opts {
+		o(&opt)
 	}
 	opt.Validate()
 	c.shutdown = append(c.shutdown, opt)
@@ -145,7 +163,7 @@ func (c *componentBuilder) build(opts options.ApplicationOptions, events handler
 				HandlerID: reflect.ValueOf(s.Handler).Pointer(),
 				Events:    events,
 				App:       opts,
-				Component: c.ComponentOptions,
+				Component: c.opts,
 			},
 			Start: s,
 		})
@@ -157,7 +175,7 @@ func (c *componentBuilder) build(opts options.ApplicationOptions, events handler
 				HandlerID: reflect.ValueOf(s.Handler).Pointer(),
 				Events:    events,
 				App:       opts,
-				Component: c.ComponentOptions,
+				Component: c.opts,
 			},
 			Shutdown: s,
 		})
@@ -169,7 +187,7 @@ func (c *componentBuilder) build(opts options.ApplicationOptions, events handler
 				HandlerID: reflect.ValueOf(p.Handler).Pointer(),
 				Events:    events,
 				App:       opts,
-				Component: c.ComponentOptions,
+				Component: c.opts,
 			},
 			Period: p,
 		})
@@ -181,7 +199,7 @@ func (c *componentBuilder) build(opts options.ApplicationOptions, events handler
 				HandlerID: reflect.ValueOf(cc.Handler).Pointer(),
 				Events:    events,
 				App:       opts,
-				Component: c.ComponentOptions,
+				Component: c.opts,
 			},
 			Consume: cc,
 		})
@@ -193,7 +211,7 @@ func (c *componentBuilder) build(opts options.ApplicationOptions, events handler
 				HandlerID: reflect.ValueOf(pc.Handler).Pointer(),
 				Events:    events,
 				App:       opts,
-				Component: c.ComponentOptions,
+				Component: c.opts,
 			},
 			Consume: pc,
 		})
@@ -205,13 +223,21 @@ func (c *componentBuilder) build(opts options.ApplicationOptions, events handler
 				HandlerID: reflect.ValueOf(pb.Handler).Pointer(),
 				Events:    events,
 				App:       opts,
-				Component: c.ComponentOptions,
+				Component: c.opts,
 			},
 			Blocking: pb,
 		})
 	}
+	for _, h := range c.proxyHandlers {
+		h.Building(handlers.Handler{
+			HandlerID: reflect.ValueOf(h.Proxy.Proxy.Handler).Pointer(),
+			Events:    events,
+			App:       opts,
+			Component: c.opts,
+		})
+	}
 	com := &component{
-		options:    c.ComponentOptions,
+		options:    c.opts,
 		appOptions: opts,
 		start:      start,
 		shutdown:   shutdown,
@@ -219,6 +245,7 @@ func (c *componentBuilder) build(opts options.ApplicationOptions, events handler
 		cConsume:   cConsume,
 		pConsume:   pConsume,
 		pBlocking:  pBlocking,
+		proxy:      c.proxyHandlers,
 		shutdownCh: make(chan struct{}),
 		exitCh:     make(chan struct{}),
 	}
@@ -227,7 +254,7 @@ func (c *componentBuilder) build(opts options.ApplicationOptions, events handler
 }
 
 func (c *componentBuilder) reset() {
-	c.ComponentOptions = options.DefaultComponentOptions()
+	c.opts = options.ComponentOptions{}
 	c.start = nil
 	c.shutdown = nil
 	c.cPeriods = nil
@@ -238,13 +265,13 @@ func (c *componentBuilder) reset() {
 
 var _ ComponentBuilder = (*componentBuilder)(nil)
 
-func newComponentBuilder(def options.ComponentDefinition, opts ...options.ComponentOptions) *componentBuilder {
+func newComponentBuilder(def options.ComponentDefinition, opts ...options.ComponentOption) *componentBuilder {
 	opt := options.DefaultComponentOptions()
 	opt.Definition = def
 	for _, o := range opts {
-		opt.Merge(&o)
+		o(&opt)
 	}
 	return &componentBuilder{
-		ComponentOptions: opt,
+		opts: opt,
 	}
 }

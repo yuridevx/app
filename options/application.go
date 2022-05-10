@@ -1,7 +1,6 @@
 package options
 
 import (
-	"github.com/yuridevx/app/extension"
 	"time"
 )
 
@@ -9,8 +8,10 @@ type ApplicationOptions struct {
 	StartTimeout             time.Duration
 	AppShutdownTimeout       time.Duration
 	ComponentShutdownTimeout time.Duration
-	GlobalMiddleware         []extension.Middleware
+	Middleware               []Middleware
 }
+
+type ApplicationOption func(o *ApplicationOptions)
 
 func DefaultApplicationOptions() ApplicationOptions {
 	return ApplicationOptions{
@@ -20,17 +21,14 @@ func DefaultApplicationOptions() ApplicationOptions {
 	}
 }
 
-func (a *ApplicationOptions) Merge(from *ApplicationOptions) {
-	if from.StartTimeout != 0 {
-		a.StartTimeout = from.StartTimeout
+func (a ApplicationOptions) Validate() {
+	if a.StartTimeout < time.Second {
+		panic("StartTimeout must be greater than or equal to 1 second")
 	}
-	if from.AppShutdownTimeout != 0 {
-		a.AppShutdownTimeout = from.AppShutdownTimeout
+	if a.AppShutdownTimeout < time.Second {
+		panic("AppShutdownTimeout must be greater than or equal to 1 second")
 	}
-	if from.GlobalMiddleware != nil {
-		merged := make([]extension.Middleware, len(a.GlobalMiddleware)+len(from.GlobalMiddleware))
-		copy(merged, a.GlobalMiddleware)
-		copy(merged[len(a.GlobalMiddleware):], from.GlobalMiddleware)
-		a.GlobalMiddleware = merged
+	if a.ComponentShutdownTimeout < time.Second {
+		panic("ComponentShutdownTimeout must be greater than or equal to 1 second")
 	}
 }

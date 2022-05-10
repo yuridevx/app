@@ -42,21 +42,25 @@ func TestDaemon(t *testing.T) {
 func TestParallel(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	ap := NewBuilder()
-	inp1 := make(chan int, 10)
+	inp1 := make(chan interface{}, 10)
 	inp1 <- 1
 	inp1 <- 2
 	inp1 <- 3
 	inp1 <- 4
 	inp1 <- 5
+	inp1 <- 6
+	inp1 <- 7
+	inp1 <- 8
+	inp1 <- 9
 	res := atomic.NewInt64(0)
 	ctx, cancel := context.WithCancel(context.Background())
 	ap.C("test").
-		CPeriod(time.Millisecond*140, func() {
+		CPeriod(time.Millisecond*120, func() {
 			cancel()
 		}).
 		PConsume(inp1, 2, func(ctx context.Context, val interface{}) {
 			res.Inc()
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(110 * time.Millisecond)
 		})
 	ap.Build().Run(ctx, wg)
 	wg.Wait()

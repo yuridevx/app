@@ -2,7 +2,6 @@ package invoker
 
 import (
 	"context"
-	"github.com/yuridevx/app/extension"
 	"github.com/yuridevx/app/options"
 	"reflect"
 	"sync"
@@ -14,6 +13,9 @@ type quickContextWg = func(ctx context.Context, wg *sync.WaitGroup, input interf
 type quickSimpleErr = func(ctx context.Context) error
 type quickSimple = func(ctx context.Context)
 type quickPlain = func()
+type quickPlainErr = func() error
+type quickInput = func(input interface{})
+type quickInputErr = func(input interface{}) error
 
 type Invoker struct {
 	qContext    quickContext
@@ -22,16 +24,19 @@ type Invoker struct {
 	qSimpleErr  quickSimpleErr
 	qSimple     quickSimple
 	qPlain      quickPlain
-	call        extension.CallType
-	reflective  *reflectiveInvoke
-	middleware  []extension.Middleware
+	qPlainErr   quickPlainErr
+	qInput      quickInput
+	qInputErr   quickInputErr
+
+	reflective *reflectiveInvoke
+	middleware []options.Middleware
 }
 
 func (i *Invoker) Invoke(
 	ctx context.Context,
 	wg *sync.WaitGroup,
 	input interface{},
-	part extension.Part,
+	call options.Call,
 ) error {
 	nextFn := func(ctx context.Context, input interface{}) error {
 		if i.qContext != nil {
@@ -62,43 +67,56 @@ func (i *Invoker) Invoke(
 			return nil
 		}
 
+		if i.qPlainErr != nil {
+			return i.qPlainErr()
+		}
+
+		if i.qInput != nil {
+			i.qInput(input)
+			return nil
+		}
+
+		if i.qInputErr != nil {
+			return i.qInputErr(input)
+		}
+
 		return i.reflective.call(ctx, wg, reflect.ValueOf(input))
 	}
-	_ = extension.RunMiddleware(ctx, i.call, part, input, i.middleware, nextFn)
-	return nil
+	err := runMiddleware(ctx, input, call, i.middleware, nextFn)
+	return err
+}
+
+func (i *Invoker) IsCast() bool {
+	return i.qContext != nil || i.qContextErr != nil || i.qContextWg != nil ||
+		i.qSimpleErr != nil || i.qSimple != nil || i.qPlain != nil ||
+		i.qPlainErr != nil || i.qInput != nil || i.qInputErr != nil
 }
 
 func NewInvoker(
 	handlerFn options.HandlerFn,
-	call extension.CallType,
-	middleware ...[]extension.Middleware,
+	middleware ...[]options.Middleware,
 ) *Invoker {
-	qContext, _ := handlerFn.(quickContext)
-	qContextErr, _ := handlerFn.(quickContextErr)
-	qContextWg, _ := handlerFn.(quickContextWg)
-	qSimpleErr, _ := handlerFn.(quickSimpleErr)
-	qSimple, _ := handlerFn.(quickSimple)
-	qPlain, _ := handlerFn.(quickPlain)
-
-	var reflective *reflectiveInvoke
-	if qContext == nil && qContextWg == nil && qSimpleErr == nil && qSimple == nil && qPlain == nil {
-		reflective = newReflectiveInvoke(handlerFn)
-	}
-
-	flat := make([]extension.Middleware, 0)
+	flat := make([]options.Middleware, 0)
 	for _, m := range middleware {
 		flat = append(flat, m...)
 	}
 
-	return &Invoker{
-		qContext:    qContext,
-		qContextErr: qContextErr,
-		qContextWg:  qContextWg,
-		qSimpleErr:  qSimpleErr,
-		qSimple:     qSimple,
-		qPlain:      qPlain,
-		call:        call,
-		reflective:  reflective,
-		middleware:  flat,
+	i := &Invoker{
+		middleware: flat,
 	}
+	i.qContext, _ = handlerFn.(quickContext)
+	i.qContextErr, _ = handlerFn.(quickContextErr)
+	i.qContextWg, _ = handlerFn.(quickContextWg)
+	i.qSimpleErr, _ = handlerFn.(quickSimpleErr)
+	i.qSimple, _ = handlerFn.(quickSimple)
+	i.qPlain, _ = handlerFn.(quickPlain)
+	i.qPlainErr, _ = handlerFn.(quickPlainErr)
+	i.qInput, _ = handlerFn.(quickInput)
+	i.qInputErr, _ = handlerFn.(quickInputErr)
+
+	if !i.IsCast() {
+		i.reflective = newReflectiveInvoke(handlerFn)
+	}
+
+	return i
 }

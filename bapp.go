@@ -6,42 +6,44 @@ import (
 )
 
 type appBuilder struct {
-	options.ApplicationOptions
+	appOpts    options.ApplicationOptions
 	events     handlers.Events
 	components []*componentBuilder
-	shutdown   []AppShutdownFn
+	shutdown   []ShutdownFn
 }
 
-func (a *appBuilder) Events(events handlers.Events) AppBuilder {
+func (a *appBuilder) Events(events handlers.Events) Builder {
 	a.events = events
 	return a
 }
 
-func (a *appBuilder) Options(opts options.ApplicationOptions) AppBuilder {
-	a.ApplicationOptions.Merge(&opts)
+func (a *appBuilder) Options(opts ...options.ApplicationOption) Builder {
+	for _, o := range opts {
+		o(&a.appOpts)
+	}
 	return a
 }
 
-func (a *appBuilder) C(def options.ComponentDefinition, opts ...options.ComponentOptions) ComponentBuilder {
+func (a *appBuilder) C(def options.ComponentDefinition, opts ...options.ComponentOption) ComponentBuilder {
 	c := newComponentBuilder(def, opts...)
 	a.components = append(a.components, c)
 	return c
 }
 
-func (a *appBuilder) OnShutdown(fn ...AppShutdownFn) AppBuilder {
+func (a *appBuilder) OnShutdown(fn ...ShutdownFn) Builder {
 	a.shutdown = append(a.shutdown, fn...)
 	return a
 }
 
 func (a *appBuilder) Build() Application {
 	ap := &app{
-		opts:           a.ApplicationOptions,
+		opts:           a.appOpts,
 		components:     make([]*component, len(a.components)),
-		shutdown:       make([]AppShutdownFn, len(a.shutdown)),
+		shutdown:       make([]ShutdownFn, len(a.shutdown)),
 		shutdownSignal: make(chan struct{}),
 	}
 	for i, c := range a.components {
-		ap.components[i] = c.build(a.ApplicationOptions, a.events)
+		ap.components[i] = c.build(a.appOpts, a.events)
 	}
 	for i, s := range a.shutdown {
 		ap.shutdown[i] = s
@@ -51,18 +53,18 @@ func (a *appBuilder) Build() Application {
 }
 
 func (a *appBuilder) reset() {
-	a.ApplicationOptions = options.ApplicationOptions{}
+	a.appOpts = options.ApplicationOptions{}
 	a.components = nil
 	a.shutdown = nil
 }
 
-func NewBuilder(opts ...options.ApplicationOptions) AppBuilder {
+func NewBuilder(opts ...options.ApplicationOption) Builder {
 	opt := options.DefaultApplicationOptions()
 	for _, o := range opts {
-		opt.Merge(&o)
+		o(&opt)
 	}
 	return &appBuilder{
-		events:             handlers.NullEvents{},
-		ApplicationOptions: opt,
+		events:  handlers.NullEvents{},
+		appOpts: opt,
 	}
 }

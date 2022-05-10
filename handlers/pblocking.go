@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"context"
-	"github.com/yuridevx/app/extension"
 	"github.com/yuridevx/app/invoker"
+	"github.com/yuridevx/app/options"
 	"sync"
 )
 
@@ -15,14 +15,13 @@ func (h *PBlockingHandler) GoRun(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 	invoke := invoker.NewInvoker(
 		h.Blocking.Handler,
-		extension.CallPBlocking,
-		h.App.GlobalMiddleware,
-		h.Component.ComponentMiddleware,
-		h.Blocking.CallMiddleware,
+		h.App.Middleware,
+		h.Component.Middleware,
+		h.Blocking.Middleware,
 	)
 
 	h.Events.PBlockingStart(h.PBlocking)
-	err := invoke.Invoke(ctx, wg, nil, h.PBlocking)
+	err := invoke.Invoke(ctx, wg, nil, h.ToCall(options.CallPBlocking))
 	h.Events.PBlockingResult(h.PBlocking, err)
 }
 

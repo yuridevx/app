@@ -1,7 +1,7 @@
 package apptrace
 
 import (
-	"github.com/yuridevx/app/extension"
+	"github.com/yuridevx/app/options"
 	"runtime"
 	"strings"
 )
@@ -20,8 +20,8 @@ func GetNameForPc(pc uintptr) string {
 	return finalName
 }
 
-type NamingStrategy func(call extension.CallType, part extension.Part) string
+type NamingStrategy func(part options.Call) string
 
-var DefaultNamingStrategy = func(call extension.CallType, part extension.Part) string {
+var DefaultNamingStrategy = func(part options.Call) string {
 	return GetNameForPc(part.GetHandler())
 }

@@ -2,7 +2,6 @@ package invoker
 
 import (
 	"context"
-	"github.com/yuridevx/app/extension"
 	"sync"
 	"testing"
 )
@@ -22,7 +21,6 @@ func TestNilInvoke(t *testing.T) {
 			}
 			called = true
 		},
-		extension.CallPeriodic,
 	)
 	wg := &sync.WaitGroup{}
 
@@ -44,7 +42,6 @@ func TestAbstractInvoke(t *testing.T) {
 			}
 			called = true
 		},
-		extension.CallPeriodic,
 	)
 	wg := &sync.WaitGroup{}
 

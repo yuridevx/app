@@ -3,7 +3,7 @@ package appzap
 import (
 	"context"
 	"github.com/yuridevx/app/apptrace"
-	"github.com/yuridevx/app/extension"
+	"github.com/yuridevx/app/options"
 	"go.uber.org/zap"
 )
 
@@ -14,18 +14,18 @@ const LogAfter LogTime = "after"
 
 type LogFn = func(
 	trace *apptrace.Trace,
-	callType extension.CallType,
+	callType options.CallType,
 	time LogTime,
 ) (bool, []zap.Field)
 
 var DefaultLogFn = func(
 	trace *apptrace.Trace,
-	callType extension.CallType,
+	callType options.CallType,
 	time LogTime,
 ) (bool, []zap.Field) {
-	if callType == extension.CallPBlocking ||
-		callType == extension.CallStart ||
-		callType == extension.CallShutdown {
+	if callType == options.CallPBlocking ||
+		callType == options.CallStart ||
+		callType == options.CallShutdown {
 		return true, nil
 	}
 	return trace.GetLog(), nil
@@ -33,10 +33,10 @@ var DefaultLogFn = func(
 
 var LogMeMiddleware = func(
 	ctx context.Context,
-	call extension.CallType,
+	call options.CallType,
 	input interface{},
-	part extension.Part,
-	next extension.NextFn,
+	part options.Call,
+	next options.NextFn,
 ) error {
 	apptrace.FromContext(ctx).WithLog(true)
 	return next(ctx, input)
@@ -44,10 +44,10 @@ var LogMeMiddleware = func(
 
 var DontLogMeMiddleware = func(
 	ctx context.Context,
-	call extension.CallType,
+	call options.CallType,
 	input interface{},
-	part extension.Part,
-	next extension.NextFn,
+	part options.Call,
+	next options.NextFn,
 ) error {
 	apptrace.FromContext(ctx).WithLog(false)
 	return next(ctx, input)
@@ -56,16 +56,16 @@ var DontLogMeMiddleware = func(
 func ZapMiddleware(
 	logger *zap.Logger,
 	shouldLog LogFn,
-) extension.Middleware {
+) options.Middleware {
 	if shouldLog == nil {
 		shouldLog = DefaultLogFn
 	}
 	return func(
 		ctx context.Context,
-		call extension.CallType,
+		call options.CallType,
 		input interface{},
-		part extension.Part,
-		next extension.NextFn,
+		part options.Call,
+		next options.NextFn,
 	) error {
 		trace := apptrace.FromContext(ctx)
 		log, fields := shouldLog(trace, call, LogBefore)

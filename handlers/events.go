@@ -25,6 +25,8 @@ type Events interface {
 	PConsumeExit(info PConsume)
 	PBlockingStart(info PBlocking)
 	PBlockingResult(info PBlocking, err error)
+	Proxy(info Proxy, input interface{})
+	ProxyResult(info Proxy, err error)
 }
 
 type NullEvents struct{}
@@ -48,6 +50,8 @@ func (NullEvents) PConsumeResult(info PConsume, err error)         {}
 func (NullEvents) PConsumeExit(info PConsume)                      {}
 func (NullEvents) PBlockingStart(info PBlocking)                   {}
 func (NullEvents) PBlockingResult(info PBlocking, err error)       {}
+func (NullEvents) Proxy(info Proxy, input interface{})             {}
+func (NullEvents) ProxyResult(info Proxy, err error)               {}
 
 type LogEvents struct {
 }
@@ -125,4 +129,12 @@ func (LogEvents) PBlockingStart(info PBlocking) {
 
 func (LogEvents) PBlockingResult(info PBlocking, err error) {
 	log.Printf("PBlockingResult")
+}
+
+func (LogEvents) Proxy(info Proxy, input interface{}) {
+	log.Printf("Proxy")
+}
+
+func (LogEvents) ProxyResult(info Proxy, err error) {
+	log.Printf("ProxyResult")
 }

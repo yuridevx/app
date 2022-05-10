@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"context"
-	"github.com/yuridevx/app/extension"
 	"github.com/yuridevx/app/invoker"
+	"github.com/yuridevx/app/options"
 	"sync"
 )
 
@@ -14,14 +14,13 @@ type CShutdownHandler struct {
 func (h *CShutdownHandler) Run(ctx context.Context, wg *sync.WaitGroup) error {
 	invoke := invoker.NewInvoker(
 		h.Shutdown.Handler,
-		extension.CallShutdown,
-		h.App.GlobalMiddleware,
-		h.Component.ComponentMiddleware,
-		h.Shutdown.CallMiddleware,
+		h.App.Middleware,
+		h.Component.Middleware,
+		h.Shutdown.Middleware,
 	)
 
 	h.Events.Shutdown(h.CShutdown)
-	err := invoke.Invoke(ctx, wg, nil, h.CShutdown)
+	err := invoke.Invoke(ctx, wg, nil, h.ToCall(options.CallShutdown))
 	h.Events.ShutdownResult(h.CShutdown, err)
 	return err
 }
