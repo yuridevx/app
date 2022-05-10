@@ -7,9 +7,16 @@ import (
 
 func NewTraceMiddleware(
 	naming NamingStrategy,
+	ignoreCallTypes []options.CallType,
 ) options.Middleware {
 	if naming == nil {
 		naming = DefaultNamingStrategy
+	}
+	if ignoreCallTypes == nil {
+		ignoreCallTypes = []options.CallType{
+			options.CallStartGroup,
+			options.CallShutdownGroup,
+		}
 	}
 	return func(
 		ctx context.Context,
@@ -17,7 +24,7 @@ func NewTraceMiddleware(
 		part options.Call,
 		next options.NextFn,
 	) error {
-		if part == nil {
+		if part.IsCallType(ignoreCallTypes...) {
 			err := next(ctx, input)
 			return err
 		}

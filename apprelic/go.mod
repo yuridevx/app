@@ -6,7 +6,7 @@ replace github.com/yuridevx/app => ../
 
 require (
 	github.com/newrelic/go-agent/v3 v3.15.2
-	github.com/yuridevx/app v0.0.30
+	github.com/yuridevx/app v0.0.32
 )
 
 require (
