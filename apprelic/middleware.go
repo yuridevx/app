@@ -47,7 +47,7 @@ func NewRelicTraceMiddleware() options.Middleware {
 		next options.NextFn,
 	) error {
 		// prepare context
-		trace := apptrace.NewTrace()
+		trace := apptrace.FromContext(ctx)
 		ctx = apptrace.TraceContext(ctx, trace)
 
 		// execute
